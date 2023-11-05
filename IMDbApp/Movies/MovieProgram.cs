@@ -1,6 +1,5 @@
 ﻿using System.Data;
 using System.Data.SqlClient;
-using System.Xml.Linq;
 
 namespace IMDbApp.Titles
 {
@@ -32,20 +31,12 @@ namespace IMDbApp.Titles
 
                     Console.WriteLine("getting titles");
                     GetTitles(searchQuery!, sqlConn);
-                    foreach (var title in titleList)
-                    {
-                        Console.WriteLine(title);
-                    }
                     break;      // Search for title
                 case "2":
                     AddTitle(sqlConn);
                     break;      // Add a title
                 case "3":         
                     UpdateTitle(sqlConn);
-                    foreach (var title in titleList)
-                    {
-                        Console.WriteLine(title);
-                    }
                         break;      // Edit a title
                 case "4":
                     Console.WriteLine("What title do you want to delete? Enter the title's id:");
@@ -75,10 +66,41 @@ namespace IMDbApp.Titles
             Console.WriteLine("Press any key to continue");
             Console.ReadKey();
         }
+        public void GetTitles(string searchQuery, SqlConnection sqlConn)
+        {
+            titleList.Clear();
+            query = $"EXECUTE [dbo].[WildcardSearchingMovies] '{searchQuery}'";
+
+            // sends the request and reads the titles from the database
+            using SqlCommand cmd = new(query, sqlConn);
+            using SqlDataReader reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                Title newTitle = new(
+                    ConvertToId(reader["titleID"].ToString()!),
+                    reader["titleType"].ToString()!,
+                    reader["primaryTitle"].ToString()!,
+                    reader["originalTitle"].ToString()!,
+                    ConvertToCBool(reader["isAdult"].ToString()!),
+                    ConvertToInt(reader["startYear"].ToString()!),
+                    ConvertToInt(reader["endYear"].ToString()!),
+                    ConvertToInt(reader["runtimeMinutes"].ToString()!)
+                    );
+                titleList.Add(newTitle);
+            }
+
+            // shows the titles
+            foreach (var title in titleList)
+            {
+                Console.WriteLine(title);
+            }
+        }
         public void GetTitlesWithActors(string searchQuery, SqlConnection sqlConn)
         {
             query = $"EXECUTE [dbo].[GetMovieWithActors] '{searchQuery}'";
             List<TitleWithActor> titlesWithActors = new();
+
+            // sends request and reads the titles with actor info from the database
             using (SqlCommand cmd = new(query, sqlConn))
             {
                 using SqlDataReader reader = cmd.ExecuteReader();
@@ -93,6 +115,8 @@ namespace IMDbApp.Titles
                     titlesWithActors.Add(newTitleWithActor);
                 }
             }
+
+            // formats the title with persons
             var groupedTitles = titlesWithActors.GroupBy(m => m.primaryTitle);
             string principalString;
             foreach (var group in groupedTitles)
@@ -114,8 +138,9 @@ namespace IMDbApp.Titles
                 Console.WriteLine();
             }
         }
-        public static void AddTitle(SqlConnection sqlConn)
+        public void AddTitle(SqlConnection sqlConn)
         {
+            titleList.Clear();
             Console.WriteLine("Lets go over what i need to add a title!");
             Console.WriteLine("\nWhat type of title is it?");
             string? titleType = Console.ReadLine();
@@ -132,19 +157,48 @@ namespace IMDbApp.Titles
             Console.WriteLine("\nHow long in minutes is the title This one is optional");
             string? runtimeMinutes = Console.ReadLine();
 
-            SqlCommand cmd;
+            query = "EXECUTE [dbo].[AddMovieTitle] " +
+                "@titleType, @primaryTitle, @originalTitle, @isAdult, @startYear, @endYear, @runtimeMinutes";
 
-            cmd = new($"EXECUTE [dbo].[AddMovieTitle] " +
-                $"'{titleType}'" +
-                $",'{primaryTitle}'" +
-                $",'{originalTitle}'" +
-                $",{ConvertToBool(isAdult!)}" +
-                $",{ConvertToInt(startYear!)}" +
-                $",{ConvertToInt(endYear!)}" +
-                $",{ConvertToInt(runtimeMinutes!)}"
-                , sqlConn);
-            Console.WriteLine("Deleting title");
-            cmd.ExecuteNonQuery();
+            // prepares the data to be added
+            using SqlCommand cmd = new(query, sqlConn);
+            cmd.Parameters.AddWithValue("@titleType", HandleStringIfEmpty(titleType!) ?? (object)DBNull.Value);
+            cmd.Parameters.AddWithValue("@primaryTitle", HandleStringIfEmpty(primaryTitle!) ?? (object)DBNull.Value);
+            cmd.Parameters.AddWithValue("@originalTitle", HandleStringIfEmpty(originalTitle!) ?? (object)DBNull.Value);
+            if (isAdult == null)
+            {
+                cmd.Parameters.AddWithValue("@isAdult", DBNull.Value);
+            }
+            else
+            {
+                cmd.Parameters.AddWithValue("@isAdult", ConvertToBool(isAdult)!);
+            }
+            cmd.Parameters.AddWithValue("@startYear", ConvertToInt(startYear!) ?? (object)DBNull.Value);
+            cmd.Parameters.AddWithValue("@endYear", ConvertToInt(endYear!) ?? (object)DBNull.Value);
+            cmd.Parameters.AddWithValue("@runtimeMinutes", ConvertToInt(runtimeMinutes!) ?? (object)DBNull.Value);
+
+            // sends data and reads the title added from the database
+            using SqlDataReader reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+
+                Title newTitle = new(
+                    ConvertToId(reader["titleID"].ToString()!),
+                    reader["titleType"].ToString()!,
+                    reader["primaryTitle"].ToString()!,
+                    reader["originalTitle"].ToString()!,
+                    ConvertToCBool(reader["isAdult"].ToString()!),
+                    ConvertToInt(reader["startYear"].ToString()!),
+                    ConvertToInt(reader["endYear"].ToString()!),
+                    ConvertToInt(reader["runtimeMinutes"].ToString()!)
+                    );
+                titleList.Add(newTitle);
+            }
+            // shows the title added
+            foreach (var title in titleList)
+            {
+                Console.WriteLine(title);
+            }
         }
         public void UpdateTitle(SqlConnection sqlConn)
         {
@@ -171,7 +225,7 @@ namespace IMDbApp.Titles
             query = "EXECUTE [dbo].[UpdateMovieTitleWithBeforeAndAfter] " +
                 "@titleID, @titleType, @primaryTitle, @originalTitle, @isAdult, @startYear, @endYear, @runtimeMinutes";
 
-
+            // prepares the data to be updated to
             using SqlCommand cmd = new(query, sqlConn);
             if (titleID != null)
             {
@@ -197,10 +251,10 @@ namespace IMDbApp.Titles
                 return;
             }
 
+            // sends data and reads the title before and after the update from the database
             using SqlDataReader reader = cmd.ExecuteReader();
             while (reader.Read())
             {
-
                 Title newTitle = new(
                     ConvertToId(reader["titleID"].ToString()!),
                     reader["titleType"].ToString()!,
@@ -213,9 +267,16 @@ namespace IMDbApp.Titles
                     );
                 titleList.Add(newTitle);
             }
+
+            // shows the title before and after update
+            foreach (var title in titleList)
+            {
+                Console.WriteLine(title);
+            }
         }
         public static Title? DeleteAndReturnTitle(string? deleteQuery, SqlConnection sqlConn)
         {
+
             if (int.TryParse(deleteQuery, out int titleID) == false) return null;
             Title deletedTitle = null!;
 
@@ -224,6 +285,7 @@ namespace IMDbApp.Titles
                 cmd.CommandType = CommandType.StoredProcedure;
                 cmd.Parameters.Add(new SqlParameter("@titleID", SqlDbType.Int) { Value = titleID });
 
+                // sends request and reads the title that was deleted if it was deleted from the database
                 using SqlDataReader reader = cmd.ExecuteReader();
                 if (reader.Read())
                 {
@@ -240,27 +302,6 @@ namespace IMDbApp.Titles
                 }
             }
             return deletedTitle;
-        }
-        public void GetTitles(string searchQuery, SqlConnection sqlConn)
-        {
-            query = $"EXECUTE [dbo].[WildcardSearchingMovies] '{searchQuery}'";
-            titleList = new List<Title>();
-            using SqlCommand cmd = new(query, sqlConn);
-            using SqlDataReader reader = cmd.ExecuteReader();
-            while (reader.Read())
-            {
-                Title newTitle = new(
-                    ConvertToId(reader["titleID"].ToString()!),
-                    reader["titleType"].ToString()!,
-                    reader["primaryTitle"].ToString()!,
-                    reader["originalTitle"].ToString()!,
-                    ConvertToCBool(reader["isAdult"].ToString()!),
-                    ConvertToInt(reader["startYear"].ToString()!),
-                    ConvertToInt(reader["endYear"].ToString()!),
-                    ConvertToInt(reader["runtimeMinutes"].ToString()!)
-                    );
-                titleList.Add(newTitle);
-            }
         }
 
         #region Converters
