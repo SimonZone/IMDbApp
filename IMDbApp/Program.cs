@@ -1,20 +1,20 @@
-﻿using IMDbApp.Movies;
+﻿using IMDbApp.Titles;
 using IMDbApp.Persons;
 
 string connString = "server=localhost;database=IMDb;" +
     "user id=sa;password=Detstores123!;TrustServerCertificate=True";
 
-MovieProgram movieProgram = new();
+TitleProgram titleProgram = new();
 PersonProgram personProgram = new();
 
 while (true)
 {
     Console.Clear();
 
-    Console.WriteLine("Hello Welcome to IMDb app for viewing and modifing movies and related things.");
+    Console.WriteLine("Hello Welcome to IMDb app for viewing and modifying titles and related things.");
     Console.WriteLine();
     Console.WriteLine("What do you want to do?");
-    Console.WriteLine("1. See options for Movies");
+    Console.WriteLine("1. See options for Titles");
     Console.WriteLine("2. See options for People");
     Console.WriteLine("3. Exit");
     string? input = Console.ReadLine();
@@ -22,7 +22,7 @@ while (true)
     switch (input)
     {
         case "1":
-            movieProgram.Run(connString);
+            titleProgram.Run(connString);
             break;
         case "2":
             personProgram.Run(connString);

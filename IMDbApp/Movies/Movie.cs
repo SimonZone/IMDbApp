@@ -4,11 +4,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace IMDbApp.Movies
+namespace IMDbApp.Titles
 {
-    internal class Movie
+    internal class Title
     {
-        public Movie(int titleID, string titleType,
+        public Title(int titleID, string titleType,
             string primaryTitle, string originalTitle,
             bool isAdult, int? startYear,
             int? endYear, int? runtimeMinutes)
