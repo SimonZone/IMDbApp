@@ -20,7 +20,7 @@
         public override string ToString()
         {
             return $"personID: {personID}: name: {name}, \n" +
-                   $"birthYear: {birthYear}, deathYear: {birthYear} \n";
+                   $"birthYear: {birthYear}, deathYear: {deathYear} \n";
         }
     }
 }

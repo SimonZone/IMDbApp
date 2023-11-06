@@ -29,8 +29,9 @@ namespace IMDbApp.Titles
                     Console.WriteLine("What title name do you want to search for?");
                     searchQuery = Console.ReadLine();
 
-                    Console.WriteLine("getting titles");
-                    GetTitles(searchQuery!, sqlConn);
+                    Console.WriteLine();
+                    Console.WriteLine("getting titles:");
+                    GetTitlesWithGenres(searchQuery!, sqlConn);
                     break;      // Search for title
                 case "2":
                     AddTitle(sqlConn);
@@ -41,7 +42,7 @@ namespace IMDbApp.Titles
                 case "4":
                     Console.WriteLine("What title do you want to delete? Enter the title's id:");
                     searchQuery = Console.ReadLine();
-                    Title? deletedTitle = DeleteAndReturnTitle(searchQuery, sqlConn);
+                    Title? deletedTitle = DeleteTitle(searchQuery, sqlConn);
                     if (deletedTitle == null)
                     {
                         Console.WriteLine("You did not enter a number or no title with that id was deleted");
@@ -56,7 +57,7 @@ namespace IMDbApp.Titles
                     searchQuery = Console.ReadLine()!;
 
                     Console.WriteLine("getting titles");
-                    GetTitlesWithActors(searchQuery, sqlConn);
+                    GetTitlesWithPersons(searchQuery, sqlConn);
                     break;      // Get title with its actors
                 default:
                     break;
@@ -66,13 +67,17 @@ namespace IMDbApp.Titles
             Console.WriteLine("Press any key to continue");
             Console.ReadKey();
         }
-        public void GetTitles(string searchQuery, SqlConnection sqlConn)
+        public void GetTitlesWithGenres(string searchQuery, SqlConnection sqlConn)
         {
             titleList.Clear();
-            query = $"EXECUTE [dbo].[WildcardSearchingMovies] '{searchQuery}'";
-
+            query = $"EXECUTE [dbo].[GetTitlesWithGenres] @SearchQuery";
+            List<Tuple<int, string?>> idGenrePairs = new List<Tuple<int, string?>>
+                {
+                    new Tuple<int, string?>(0,"")
+                };
             // sends the request and reads the titles from the database
             using SqlCommand cmd = new(query, sqlConn);
+            cmd.Parameters.AddWithValue("@SearchQuery", searchQuery);
             using SqlDataReader reader = cmd.ExecuteReader();
             while (reader.Read())
             {
@@ -86,23 +91,37 @@ namespace IMDbApp.Titles
                     ConvertToInt(reader["endYear"].ToString()!),
                     ConvertToInt(reader["runtimeMinutes"].ToString()!)
                     );
+                idGenrePairs.Add(new Tuple<int, string?>(newTitle.titleID, reader["genre"].ToString()));
                 titleList.Add(newTitle);
             }
 
-            // shows the titles
-            foreach (var title in titleList)
+            // formats the title with persons
+            var groupedTitles = titleList.GroupBy(m => m.primaryTitle).Select(x => x.First());
+            string titleWithGenreString;
+            foreach (var title in groupedTitles)
             {
-                Console.WriteLine(title);
+                if (idGenrePairs.Where(x => x.Item1 == title.titleID).Count() == 0)
+                {
+                    Console.WriteLine(title.ToString());
+                }
+                else
+                {
+                    titleWithGenreString = title.ToString();
+                    titleWithGenreString += string.Join(", ", idGenrePairs.Where(x => x.Item1 == title.titleID).Select(x => x.Item2));
+                    Console.WriteLine(titleWithGenreString);
+                }
             }
+            Console.WriteLine();
         }
-        public void GetTitlesWithActors(string searchQuery, SqlConnection sqlConn)
+        public void GetTitlesWithPersons(string searchQuery, SqlConnection sqlConn)
         {
-            query = $"EXECUTE [dbo].[GetMovieWithActors] '{searchQuery}'";
+            query = $"EXECUTE [dbo].[GetTitlesWithPersons] @SearchQuery";
             List<TitleWithActor> titlesWithActors = new();
 
             // sends request and reads the titles with actor info from the database
             using (SqlCommand cmd = new(query, sqlConn))
             {
+                cmd.Parameters.AddWithValue("@SearchQuery", searchQuery);
                 using SqlDataReader reader = cmd.ExecuteReader();
                 while (reader.Read())
                 {
@@ -157,7 +176,7 @@ namespace IMDbApp.Titles
             Console.WriteLine("\nHow long in minutes is the title This one is optional");
             string? runtimeMinutes = Console.ReadLine();
 
-            query = "EXECUTE [dbo].[AddMovieTitle] " +
+            query = "EXECUTE [dbo].[AddNewTitle] " +
                 "@titleType, @primaryTitle, @originalTitle, @isAdult, @startYear, @endYear, @runtimeMinutes";
 
             // prepares the data to be added
@@ -222,7 +241,7 @@ namespace IMDbApp.Titles
             Console.WriteLine("\nWhat is the new value How long in minutes the title is? optional");
             string? runtimeMinutes = Console.ReadLine();
 
-            query = "EXECUTE [dbo].[UpdateMovieTitleWithBeforeAndAfter] " +
+            query = "EXECUTE [dbo].[UpdateTitle] " +
                 "@titleID, @titleType, @primaryTitle, @originalTitle, @isAdult, @startYear, @endYear, @runtimeMinutes";
 
             // prepares the data to be updated to
@@ -274,13 +293,12 @@ namespace IMDbApp.Titles
                 Console.WriteLine(title);
             }
         }
-        public static Title? DeleteAndReturnTitle(string? deleteQuery, SqlConnection sqlConn)
+        public static Title? DeleteTitle(string? deleteQuery, SqlConnection sqlConn)
         {
-
             if (int.TryParse(deleteQuery, out int titleID) == false) return null;
             Title deletedTitle = null!;
 
-            using (SqlCommand cmd = new("DeleteAndReturnMovie", sqlConn))
+            using (SqlCommand cmd = new("DeleteTitle", sqlConn))
             {
                 cmd.CommandType = CommandType.StoredProcedure;
                 cmd.Parameters.Add(new SqlParameter("@titleID", SqlDbType.Int) { Value = titleID });

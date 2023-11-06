@@ -38,7 +38,7 @@ namespace IMDbApp.Persons
                     searchQuery = Console.ReadLine();
 
                     Console.WriteLine("getting person with titles");
-                    GetActorsTitles(searchQuery!, sqlConn);
+                    GetPersonsWithTitles(searchQuery!, sqlConn);
                     break;  // Get persons with theirs titles
                 default:
                     break;
@@ -50,10 +50,10 @@ namespace IMDbApp.Persons
         public void GetPersons(string searchQuery, SqlConnection sqlConn)
         {
             personList.Clear();
-            query = $"EXECUTE [dbo].[WildcardSearchingPersons] '{searchQuery}'";
+            query = $"EXECUTE [dbo].[GetPersons] @SearchQuery";
             personList = new List<Person>();
             using SqlCommand cmd = new(query, sqlConn);
-
+            cmd.Parameters.AddWithValue("@SearchQuery", searchQuery);
             // sends request and reads the persons from the database
             using SqlDataReader reader = cmd.ExecuteReader();
             while (reader.Read())
@@ -110,14 +110,15 @@ namespace IMDbApp.Persons
                 Console.WriteLine(person);
             }
         }
-        public void GetActorsTitles(string searchQuery, SqlConnection sqlConn)
+        public void GetPersonsWithTitles(string searchQuery, SqlConnection sqlConn)
         {
-            query = $"EXECUTE [dbo].[GetActorWithMovies] '{searchQuery}'";
+            query = $"EXECUTE [dbo].[GetPersonsWithTitles] @SearchQuery";
             List<PersonsTitles> personsTitles = new();
 
             // sends request and reads the persons with title info from the database
             using (SqlCommand cmd = new(query, sqlConn))
             {
+                cmd.Parameters.AddWithValue("@SearchQuery", searchQuery);
                 using SqlDataReader reader = cmd.ExecuteReader();
                 while (reader.Read())
                 {
