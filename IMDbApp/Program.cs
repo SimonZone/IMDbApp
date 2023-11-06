@@ -1,8 +1,8 @@
 ﻿using IMDbApp.Titles;
 using IMDbApp.Persons;
 
-string connString = "server=localhost;database=IMDb;" +
-    "user id=sa;password=Detstores123!;TrustServerCertificate=True";
+string connString = "server=localhost;database=IMDb;user id=sa;password=Detstores123!;TrustServerCertificate=True";
+//string connString = "server=localhost;database=IMDb;user id=sa;password=SQLData23!;TrustServerCertificate=True";
 
 TitleProgram titleProgram = new();
 PersonProgram personProgram = new();
