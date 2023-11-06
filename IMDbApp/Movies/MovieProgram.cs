@@ -1,5 +1,6 @@
 ﻿using System.Data;
 using System.Data.SqlClient;
+using System.Data.SqlTypes;
 
 namespace IMDbApp.Titles
 {
@@ -176,47 +177,91 @@ namespace IMDbApp.Titles
             Console.WriteLine("\nHow long in minutes is the title This one is optional");
             string? runtimeMinutes = Console.ReadLine();
 
+            Console.WriteLine("\nWhat genre is the title, Type the name of the genre and press enter");
+            Console.WriteLine("\nYou can do this multiple times, type nothing if you don't want to add anymore");
+            List<string> genres = new List<string>();
+            bool loop = true;
+            while (loop)
+            {
+                string? newGenre = Console.ReadLine();
+                if (newGenre == null || newGenre == "")
+                {
+                    loop = false;
+                }
+                else
+                {
+                    genres.Add(newGenre!);
+                }
+            }
+
+
             query = "EXECUTE [dbo].[AddNewTitle] " +
                 "@titleType, @primaryTitle, @originalTitle, @isAdult, @startYear, @endYear, @runtimeMinutes";
 
             // prepares the data to be added
-            using SqlCommand cmd = new(query, sqlConn);
-            cmd.Parameters.AddWithValue("@titleType", HandleStringIfEmpty(titleType!) ?? (object)DBNull.Value);
-            cmd.Parameters.AddWithValue("@primaryTitle", HandleStringIfEmpty(primaryTitle!) ?? (object)DBNull.Value);
-            cmd.Parameters.AddWithValue("@originalTitle", HandleStringIfEmpty(originalTitle!) ?? (object)DBNull.Value);
-            if (isAdult == null)
+            using (SqlCommand cmd = new(query, sqlConn))
             {
-                cmd.Parameters.AddWithValue("@isAdult", DBNull.Value);
-            }
-            else
-            {
-                cmd.Parameters.AddWithValue("@isAdult", ConvertToBool(isAdult)!);
-            }
-            cmd.Parameters.AddWithValue("@startYear", ConvertToInt(startYear!) ?? (object)DBNull.Value);
-            cmd.Parameters.AddWithValue("@endYear", ConvertToInt(endYear!) ?? (object)DBNull.Value);
-            cmd.Parameters.AddWithValue("@runtimeMinutes", ConvertToInt(runtimeMinutes!) ?? (object)DBNull.Value);
+                cmd.Parameters.AddWithValue("@titleType", HandleStringIfEmpty(titleType!) ?? (object)DBNull.Value);
+                cmd.Parameters.AddWithValue("@primaryTitle", HandleStringIfEmpty(primaryTitle!) ?? (object)DBNull.Value);
+                cmd.Parameters.AddWithValue("@originalTitle", HandleStringIfEmpty(originalTitle!) ?? (object)DBNull.Value);
+                if (isAdult == null)
+                {
+                    cmd.Parameters.AddWithValue("@isAdult", DBNull.Value);
+                }
+                else
+                {
+                    cmd.Parameters.AddWithValue("@isAdult", ConvertToBool(isAdult)!);
+                }
+                cmd.Parameters.AddWithValue("@startYear", ConvertToInt(startYear!) ?? (object)DBNull.Value);
+                cmd.Parameters.AddWithValue("@endYear", ConvertToInt(endYear!) ?? (object)DBNull.Value);
+                cmd.Parameters.AddWithValue("@runtimeMinutes", ConvertToInt(runtimeMinutes!) ?? (object)DBNull.Value);
 
-            // sends data and reads the title added from the database
-            using SqlDataReader reader = cmd.ExecuteReader();
-            while (reader.Read())
-            {
+                // sends data and reads the title added from the database
+                using (SqlDataReader reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        Title newTitle = new(
+                            ConvertToId(reader["titleID"].ToString()!),
+                            reader["titleType"].ToString()!,
+                            reader["primaryTitle"].ToString()!,
+                            reader["originalTitle"].ToString()!,
+                            ConvertToCBool(reader["isAdult"].ToString()!),
+                            ConvertToInt(reader["startYear"].ToString()!),
+                            ConvertToInt(reader["endYear"].ToString()!),
+                            ConvertToInt(reader["runtimeMinutes"].ToString()!)
+                            );
+                        titleList.Add(newTitle);
+                    }
+                    reader.Close();
+                };
+            }
 
-                Title newTitle = new(
-                    ConvertToId(reader["titleID"].ToString()!),
-                    reader["titleType"].ToString()!,
-                    reader["primaryTitle"].ToString()!,
-                    reader["originalTitle"].ToString()!,
-                    ConvertToCBool(reader["isAdult"].ToString()!),
-                    ConvertToInt(reader["startYear"].ToString()!),
-                    ConvertToInt(reader["endYear"].ToString()!),
-                    ConvertToInt(reader["runtimeMinutes"].ToString()!)
-                    );
-                titleList.Add(newTitle);
+            query = "EXECUTE[dbo].[AddLinkBetweenTitleAndGenre] @genre, @titleID";
+            SqlCommand sqlcmd = new(query, sqlConn);
+
+            SqlParameter titleID = new("@titleID", System.Data.SqlDbType.Int);
+            sqlcmd.Parameters.Add(titleID);
+            SqlParameter genre = new("@genre", System.Data.SqlDbType.VarChar, 50);
+            sqlcmd.Parameters.Add(genre);
+            titleID.Value = titleList.First().titleID;
+            foreach (string newGenre in genres)
+            {
+                genre.Value = newGenre;
+                try
+                {
+                    sqlcmd.ExecuteNonQuery();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                    Console.WriteLine(sqlcmd.CommandText);
+                }
             }
             // shows the title added
             foreach (var title in titleList)
             {
-                Console.WriteLine(title);
+                Console.WriteLine(title + string.Join(", ", genres));
             }
         }
         public void UpdateTitle(SqlConnection sqlConn)
