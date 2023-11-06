@@ -168,7 +168,7 @@ namespace IMDbApp.Titles
             string? primaryTitle = Console.ReadLine();
             Console.WriteLine("\nWhat is the original title of the title?");
             string? originalTitle = Console.ReadLine();
-            Console.WriteLine("\nIs title for adults only?");
+            Console.WriteLine("\nIs title for adults only? type 1 for adult and 0 or leave blank for all ages");
             string? isAdult = Console.ReadLine();
             Console.WriteLine("\nWhat year was the title released? This one is optional");
             string? startYear = Console.ReadLine();
@@ -178,7 +178,7 @@ namespace IMDbApp.Titles
             string? runtimeMinutes = Console.ReadLine();
 
             Console.WriteLine("\nWhat genre is the title, Type the name of the genre and press enter");
-            Console.WriteLine("\nYou can do this multiple times, type nothing if you don't want to add anymore");
+            Console.WriteLine("You can do this multiple times, type nothing if you don't want to add anymore");
             List<string> genres = new List<string>();
             bool loop = true;
             while (loop)
@@ -193,7 +193,6 @@ namespace IMDbApp.Titles
                     genres.Add(newGenre!);
                 }
             }
-
 
             query = "EXECUTE [dbo].[AddNewTitle] " +
                 "@titleType, @primaryTitle, @originalTitle, @isAdult, @startYear, @endYear, @runtimeMinutes";
@@ -244,6 +243,7 @@ namespace IMDbApp.Titles
             sqlcmd.Parameters.Add(titleID);
             SqlParameter genre = new("@genre", System.Data.SqlDbType.VarChar, 50);
             sqlcmd.Parameters.Add(genre);
+
             titleID.Value = titleList.First().titleID;
             foreach (string newGenre in genres)
             {
