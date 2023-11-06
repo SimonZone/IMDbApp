@@ -9,6 +9,8 @@ namespace IMDbApp.Titles
         string? searchQuery;
         string? query;
         List<Title> titleList = new();
+        int currentPage = 0;
+        bool exit = false;
         public void Run(string connString)
         {
             SqlConnection sqlConn = new(connString);
@@ -27,13 +29,39 @@ namespace IMDbApp.Titles
             switch (input)
             {
                 case "1":
+                    currentPage = 0;
                     Console.WriteLine("What title name do you want to search for?");
                     searchQuery = Console.ReadLine();
 
                     Console.WriteLine();
-                    Console.WriteLine("getting titles:");
-                    GetTitlesWithGenres(searchQuery!, sqlConn);
-                    break;      // Search for title
+
+                    GetTitlesWithGenres(searchQuery!, currentPage, sqlConn);
+                    
+                    exit = false;
+                    while (!exit)
+                    {
+                        Console.WriteLine("Page: " + currentPage);
+                        ConsoleKeyInfo keyInfo = Console.ReadKey();
+                        switch (keyInfo.Key)
+                        {
+                            case ConsoleKey.RightArrow:
+                                GetTitlesWithGenres(searchQuery!, currentPage++, sqlConn);
+                                break;
+                            case ConsoleKey.LeftArrow:
+                                if (currentPage >= 1)
+                                {
+                                    GetTitlesWithGenres(searchQuery!, currentPage--, sqlConn);
+                                }
+                                break;
+                            case ConsoleKey.X:
+                                exit = true;
+                                break;
+                            default:
+                                Console.WriteLine("you did not press a supported key");
+                                break;
+                        }
+                    }
+                    break;        // Search for title
                 case "2":
                     AddTitle(sqlConn);
                     break;      // Add a title
@@ -53,12 +81,38 @@ namespace IMDbApp.Titles
                         Console.WriteLine(deletedTitle);
                     }
                     break;      // Delete a title
-                case "5":         
+                case "5":
+                    currentPage = 0;
                     Console.WriteLine("What title name do you want to search for?");
                     searchQuery = Console.ReadLine()!;
 
                     Console.WriteLine("getting titles");
-                    GetTitlesWithPersons(searchQuery, sqlConn);
+                    GetTitlesWithPersons(searchQuery, currentPage, sqlConn);
+
+                    exit = false;
+                    while (!exit)
+                    {
+                        Console.WriteLine("Page: " + currentPage);
+                        ConsoleKeyInfo keyInfo = Console.ReadKey();
+                        switch (keyInfo.Key)
+                        {
+                            case ConsoleKey.RightArrow:
+                                GetTitlesWithPersons(searchQuery!, currentPage++, sqlConn);
+                                break;
+                            case ConsoleKey.LeftArrow:
+                                if (currentPage >= 1)
+                                {
+                                    GetTitlesWithPersons(searchQuery!, currentPage--, sqlConn);
+                                }
+                                break;
+                            case ConsoleKey.X:
+                                exit = true;
+                                break;
+                            default:
+                                Console.WriteLine("you did not press a supported key");
+                                break;
+                        }
+                    }
                     break;      // Get title with its actors
                 default:
                     break;
@@ -68,10 +122,11 @@ namespace IMDbApp.Titles
             Console.WriteLine("Press any key to continue");
             Console.ReadKey();
         }
-        public void GetTitlesWithGenres(string searchQuery, SqlConnection sqlConn)
+        public void GetTitlesWithGenres(string searchQuery, int page, SqlConnection sqlConn)
         {
             titleList.Clear();
-            query = $"EXECUTE [dbo].[GetTitlesWithGenres] @SearchQuery";
+            Console.Clear();
+            query = $"EXECUTE [dbo].[GetTitlesWithGenres] @SearchQuery, @Page";
             List<Tuple<int, string?>> idGenrePairs = new List<Tuple<int, string?>>
                 {
                     new Tuple<int, string?>(0,"")
@@ -79,6 +134,7 @@ namespace IMDbApp.Titles
             // sends the request and reads the titles from the database
             using SqlCommand cmd = new(query, sqlConn);
             cmd.Parameters.AddWithValue("@SearchQuery", searchQuery);
+            cmd.Parameters.AddWithValue("@Page", page);
             using SqlDataReader reader = cmd.ExecuteReader();
             while (reader.Read())
             {
@@ -112,17 +168,20 @@ namespace IMDbApp.Titles
                     Console.WriteLine(titleWithGenreString);
                 }
             }
-            Console.WriteLine();
+            Console.WriteLine("Press right arrow to get the next 10 titles or left arrow to see the last 10 titles");
+            Console.WriteLine("Or Press X to exit");
         }
-        public void GetTitlesWithPersons(string searchQuery, SqlConnection sqlConn)
+        public void GetTitlesWithPersons(string searchQuery, int page , SqlConnection sqlConn)
         {
-            query = $"EXECUTE [dbo].[GetTitlesWithPersons] @SearchQuery";
+            Console.Clear();
+            query = $"EXECUTE [dbo].[GetTitlesWithPersons] @SearchQuery, @Page";
             List<TitleWithActor> titlesWithActors = new();
 
             // sends request and reads the titles with actor info from the database
             using (SqlCommand cmd = new(query, sqlConn))
             {
                 cmd.Parameters.AddWithValue("@SearchQuery", searchQuery);
+                cmd.Parameters.AddWithValue("@page", page);
                 using SqlDataReader reader = cmd.ExecuteReader();
                 while (reader.Read())
                 {
@@ -155,8 +214,10 @@ namespace IMDbApp.Titles
                         Console.WriteLine(principalString);
                     }
                 }
-                Console.WriteLine();
+                Console.WriteLine("");
             }
+            Console.WriteLine("Press right arrow to get the next 10 titles or left arrow to see the last 10 titles");
+            Console.WriteLine("Or Press X to exit");
         }
         public void AddTitle(SqlConnection sqlConn)
         {

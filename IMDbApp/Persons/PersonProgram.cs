@@ -7,6 +7,9 @@ namespace IMDbApp.Persons
         string? query;
         string? searchQuery;
         List<Person> personList = new();
+        int currentPage = 0;
+        bool exit = false;
+
         public void Run(string connString)
         {
             SqlConnection sqlConn = new(connString);
@@ -24,21 +27,71 @@ namespace IMDbApp.Persons
             switch (input)
             {
                 case "1":
+                    currentPage = 0;
                     Console.WriteLine("What person do you want to search for?");
                     searchQuery = Console.ReadLine();
 
                     Console.WriteLine("getting persons");
-                    GetPersons(searchQuery!, sqlConn);
-                    break;  // Search for persons
+                    GetPersons(searchQuery!, currentPage, sqlConn);
+                    exit = false;
+                    while (!exit)
+                    {
+                        Console.WriteLine("Page: " + currentPage);
+                        ConsoleKeyInfo keyInfo = Console.ReadKey();
+                        switch (keyInfo.Key)
+                        {
+                            case ConsoleKey.RightArrow:
+                                GetPersonsWithTitles(searchQuery!, currentPage++, sqlConn);
+                                break;
+                            case ConsoleKey.LeftArrow:
+                                if (currentPage >= 1)
+                                {
+                                    GetPersonsWithTitles(searchQuery!, currentPage--, sqlConn);
+                                }
+                                break;
+                            case ConsoleKey.X:
+                                exit = true;
+                                break;
+                            default:
+                                Console.WriteLine("you did not press a supported key");
+                                break;
+                        }
+                    }
+                    break;  // Get persons
                 case "2":
                     AddPerson(sqlConn);
-                    break;
+                    break;  // Add person
                 case "3":
+                    currentPage = 0;
                     Console.WriteLine("What person do you want to search for?");
                     searchQuery = Console.ReadLine();
 
                     Console.WriteLine("getting person with titles");
-                    GetPersonsWithTitles(searchQuery!, sqlConn);
+                    GetPersonsWithTitles(searchQuery!, currentPage, sqlConn);
+                    exit = false;
+                    while (!exit)
+                    {
+                        Console.WriteLine("Page: " + currentPage);
+                        ConsoleKeyInfo keyInfo = Console.ReadKey();
+                        switch (keyInfo.Key)
+                        {
+                            case ConsoleKey.RightArrow:
+                                GetPersonsWithTitles(searchQuery!, currentPage++, sqlConn);
+                                break;
+                            case ConsoleKey.LeftArrow:
+                                if (currentPage >= 1)
+                                {
+                                    GetPersonsWithTitles(searchQuery!, currentPage--, sqlConn);
+                                }
+                                break;
+                            case ConsoleKey.X:
+                                exit = true;
+                                break;
+                            default:
+                                Console.WriteLine("you did not press a supported key");
+                                break;
+                        }
+                    }
                     break;  // Get persons with theirs titles
                 default:
                     break;
@@ -47,13 +100,14 @@ namespace IMDbApp.Persons
             Console.WriteLine("Press any key to continue");
             Console.ReadKey();
         }
-        public void GetPersons(string searchQuery, SqlConnection sqlConn)
+        public void GetPersons(string searchQuery, int page, SqlConnection sqlConn)
         {
             personList.Clear();
-            query = $"EXECUTE [dbo].[GetPersons] @SearchQuery";
+            query = $"EXECUTE [dbo].[GetPersons] @SearchQuery, @Page";
             personList = new List<Person>();
             using SqlCommand cmd = new(query, sqlConn);
             cmd.Parameters.AddWithValue("@SearchQuery", searchQuery);
+            cmd.Parameters.AddWithValue("@Page", page);
             // sends request and reads the persons from the database
             using SqlDataReader reader = cmd.ExecuteReader();
             while (reader.Read())
@@ -72,6 +126,9 @@ namespace IMDbApp.Persons
             {
                 Console.WriteLine(person);
             }
+
+            Console.WriteLine("Press right arrow to get the next 10 titles or left arrow to see the last 10 titles");
+            Console.WriteLine("Or Press X to exit");
         }
         public void AddPerson(SqlConnection sqlConn)
         {
@@ -110,15 +167,16 @@ namespace IMDbApp.Persons
                 Console.WriteLine(person);
             }
         }
-        public void GetPersonsWithTitles(string searchQuery, SqlConnection sqlConn)
+        public void GetPersonsWithTitles(string searchQuery, int page, SqlConnection sqlConn)
         {
-            query = $"EXECUTE [dbo].[GetPersonsWithTitles] @SearchQuery";
+            query = $"EXECUTE [dbo].[GetPersonsWithTitles] @SearchQuery, @Page";
             List<PersonsTitles> personsTitles = new();
 
             // sends request and reads the persons with title info from the database
             using (SqlCommand cmd = new(query, sqlConn))
             {
                 cmd.Parameters.AddWithValue("@SearchQuery", searchQuery);
+                cmd.Parameters.AddWithValue("@Page", page);
                 using SqlDataReader reader = cmd.ExecuteReader();
                 while (reader.Read())
                 {
@@ -153,6 +211,8 @@ namespace IMDbApp.Persons
                 }
                 Console.WriteLine();
             }
+            Console.WriteLine("Press right arrow to get the next 10 titles or left arrow to see the last 10 titles");
+            Console.WriteLine("Or Press X to exit");
         }
 
         #region  Converters
