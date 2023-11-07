@@ -41,12 +41,12 @@ namespace IMDbApp.Persons
                         switch (keyInfo.Key)
                         {
                             case ConsoleKey.RightArrow:
-                                GetPersonsWithTitles(searchQuery!, currentPage++, sqlConn);
+                                GetPersons(searchQuery!, currentPage++, sqlConn);
                                 break;
                             case ConsoleKey.LeftArrow:
                                 if (currentPage >= 1)
                                 {
-                                    GetPersonsWithTitles(searchQuery!, currentPage--, sqlConn);
+                                    GetPersons(searchQuery!, currentPage--, sqlConn);
                                 }
                                 break;
                             case ConsoleKey.X:
@@ -106,6 +106,7 @@ namespace IMDbApp.Persons
             query = $"EXECUTE [dbo].[GetPersons] @SearchQuery, @Page";
             personList = new List<Person>();
             using SqlCommand cmd = new(query, sqlConn);
+            cmd.CommandTimeout = 120;
             cmd.Parameters.AddWithValue("@SearchQuery", searchQuery);
             cmd.Parameters.AddWithValue("@Page", page);
             // sends request and reads the persons from the database
