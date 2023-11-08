@@ -181,7 +181,7 @@ namespace IMDbApp.Titles
             using (SqlCommand cmd = new(query, sqlConn))
             {
                 cmd.Parameters.AddWithValue("@SearchQuery", searchQuery);
-                cmd.Parameters.AddWithValue("@page", page);
+                cmd.Parameters.AddWithValue("@Page", page);
                 using SqlDataReader reader = cmd.ExecuteReader();
                 while (reader.Read())
                 {
